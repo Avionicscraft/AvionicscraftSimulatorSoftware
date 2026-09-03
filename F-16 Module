@@ -1,1 +1,344 @@
-test
+// =====================================================
+// DCS-BIOS F-16C
+// ESP32-S3 Waveshare ETH PoE + W5500
+// =====================================================
+
+#include <SPI.h>
+#include <Ethernet.h>
+
+// =====================================================
+// Forward declare voor DcsBios
+// =====================================================
+
+namespace DcsBios {
+  bool tryToSendDcsBiosMessage(const char* msg, const char* arg);
+}
+
+#include <DcsBios.h>
+
+// =====================================================
+// W5500 pinnen
+// =====================================================
+
+#define W5500_CS    14
+#define W5500_SCK   13
+#define W5500_MISO  12
+#define W5500_MOSI  11
+#define W5500_RST   9
+
+// =====================================================
+// PWM LED
+// =====================================================
+
+#define LED_PIN 43
+
+const int pwmFreq = 5000;
+const int pwmResolution = 8;
+
+// =====================================================
+// Netwerk
+// =====================================================
+
+byte mac[] = {
+  0x02, 0x68, 0x0B, 0x5D, 0xE3, 0xA4
+};
+
+IPAddress localIp(10, 10, 10, 37);
+IPAddress serverIp(10, 10, 10, 1);
+IPAddress subnet(255, 255, 255, 128);
+
+const uint16_t serverPort = 7778;
+
+// =====================================================
+// Ethernet client
+// =====================================================
+
+EthernetClient client;
+
+DcsBios::ProtocolParser parser;
+
+// =====================================================
+// Status variabelen
+// =====================================================
+
+unsigned long lastReconnectAttempt = 0;
+unsigned long lastPacketTime = 0;
+
+bool ethernetOk = false;
+
+// =====================================================
+// DCS-BIOS send functie
+// =====================================================
+
+namespace DcsBios {
+
+  bool tryToSendDcsBiosMessage(const char* msg, const char* arg) {
+
+    if (!client.connected()) {
+      return false;
+    }
+
+    size_t n = client.print(msg);
+
+    if (n == 0) {
+      client.stop();
+      return false;
+    }
+
+    client.print(' ');
+    client.print(arg);
+    client.print('\n');
+
+    return true;
+  }
+}
+
+// =====================================================
+// PWM brightness callback
+// =====================================================
+
+void onPriConsolesBrtKnbChange(unsigned int newValue) {
+
+  int pwmValue = map(newValue, 0, 65535, 0, 255);
+
+  pwmValue = constrain(pwmValue, 0, 255);
+
+  ledcWrite(LED_PIN, pwmValue);
+}
+
+// =====================================================
+// DCS-BIOS buffers
+// =====================================================
+
+DcsBios::IntegerBuffer priConsolesBrtKnbBuffer(
+  F_16C_50_PRI_CONSOLES_BRT_KNB,
+  onPriConsolesBrtKnbChange
+);
+
+// =====================================================
+// Switches
+// =====================================================
+
+DcsBios::Switch3Pos hudScalesSw("HUD_SCALES_SW", 33, 34);
+
+DcsBios::Switch3Pos hudFpMarkerSw("HUD_FP_MARKER_SW", 35, 36);
+
+DcsBios::Switch3Pos hudDedDataSw("HUD_DED_DATA_SW", 37, 38);
+
+DcsBios::Switch3Pos hudDepressRetSw("HUD_DEPRESS_RET_SW", 18, 16);
+
+DcsBios::Switch3Pos hudSpeedSw("HUD_SPEED_SW", 2, 3);
+
+DcsBios::Switch3Pos hudAltSw("HUD_ALT_SW", 19, 20);
+
+DcsBios::Switch3Pos hudBrtSw("HUD_BRT_SW", 46, 47);
+
+DcsBios::Switch3Pos hudTestSw("HUD_TEST_SW", 41, 42);
+
+// =====================================================
+// Alleen deze waarde printen
+// =====================================================
+
+void onClockElapsedTimeSecChange(unsigned int newValue10) {
+
+  Serial.println(newValue10);
+}
+
+DcsBios::IntegerBuffer clockElapsedTimeSecBuffer(
+  F_16C_50_CLOCK_ELAPSED_TIME_SEC,
+  onClockElapsedTimeSecChange
+);
+
+// =====================================================
+// Verplicht voor DCS-BIOS
+// =====================================================
+
+void onDcsBiosWrite(unsigned int address, unsigned int value) {
+}
+
+// =====================================================
+// W5500 reset
+// =====================================================
+
+void resetW5500() {
+
+  pinMode(W5500_RST, OUTPUT);
+
+  digitalWrite(W5500_RST, LOW);
+
+  delay(300);
+
+  digitalWrite(W5500_RST, HIGH);
+
+  delay(1000);
+}
+
+// =====================================================
+// Ethernet starten
+// =====================================================
+
+void startEthernet() {
+
+  SPI.begin(
+    W5500_SCK,
+    W5500_MISO,
+    W5500_MOSI,
+    W5500_CS
+  );
+
+  SPI.setFrequency(8000000);
+
+  Ethernet.init(W5500_CS);
+
+  Ethernet.begin(mac, localIp);
+
+  delay(1000);
+
+  ethernetOk = true;
+}
+
+// =====================================================
+// TCP verbinding
+// =====================================================
+
+void connectToServer() {
+
+  if (!ethernetOk) return;
+
+  if (Ethernet.linkStatus() == LinkOFF) {
+
+    client.stop();
+
+    return;
+  }
+
+  if (client.connected()) return;
+
+  client.stop();
+
+  client.setTimeout(50);
+
+  if (client.connect(serverIp, serverPort)) {
+
+    lastPacketTime = millis();
+  }
+}
+
+// =====================================================
+// Setup
+// =====================================================
+
+void setup() {
+
+  Serial.begin(115200);
+
+  delay(1000);
+
+  // ===================================================
+  // PWM
+  // ===================================================
+
+  ledcAttach(LED_PIN, pwmFreq, pwmResolution);
+
+  ledcWrite(LED_PIN, 0);
+
+  // ===================================================
+  // Reset W5500
+  // ===================================================
+
+  resetW5500();
+
+  // ===================================================
+  // Ethernet starten
+  // ===================================================
+
+  startEthernet();
+
+  // ===================================================
+  // Verbinden met DCS-BIOS server
+  // ===================================================
+
+  connectToServer();
+}
+
+// =====================================================
+// LOOP
+// =====================================================
+
+void loop() {
+
+  // ===================================================
+  // Ethernet link check
+  // ===================================================
+
+  if (Ethernet.linkStatus() == LinkOFF) {
+
+    client.stop();
+
+    delay(100);
+
+    return;
+  }
+
+  // ===================================================
+  // Reconnect handling
+  // ===================================================
+
+  if (!client.connected()) {
+
+    unsigned long now = millis();
+
+    if (now - lastReconnectAttempt > 3000) {
+
+      lastReconnectAttempt = now;
+
+      connectToServer();
+    }
+
+  } else {
+
+    // =================================================
+    // TCP data lezen
+    // =================================================
+
+    int limit = 256;
+
+    while (client.available() && limit--) {
+
+      int c = client.read();
+
+      if (c < 0) {
+        break;
+      }
+
+      parser.processChar((char)c);
+
+      lastPacketTime = millis();
+
+      delayMicroseconds(20);
+    }
+
+    // ================================================
+    // Socket timeout detectie
+    // ================================================
+
+    if (millis() - lastPacketTime > 10000) {
+
+      client.stop();
+    }
+  }
+
+  // ===================================================
+  // DCS-BIOS processing
+  // ===================================================
+
+  DcsBios::PollingInput::pollInputs();
+
+  DcsBios::ExportStreamListener::loopAll();
+
+  // ===================================================
+  // Yield
+  // ===================================================
+
+  delay(1);
+}
