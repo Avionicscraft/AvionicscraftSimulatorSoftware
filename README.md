@@ -244,26 +244,6 @@ Click **Enable Windows startup** to launch the application after the current use
 
 Re-enable Windows startup after moving or renaming the executable so the registered path remains correct.
 
-## Troubleshooting
-
-| Problem | First checks |
-|---|---|
-| A panel is absent | Start DCS-LINK; check power, DHCP, the same LAN, unique MAC, UDP `39000` and TCP `39001`. |
-| DCS-BIOS remains orange | Check DCS-BIOS, the DCS PC address, TCP `7778` and Windows Firewall. |
-| A panel connects but controls fail | Check live input values, control identifiers, GPIO assignments and ground wiring. |
-| LED output does not respond | Check compatible test firmware, UDP `39002`, the external driver, common ground and PWM polarity. |
-| Mission starts with incorrect positions | Wait for green status and confirm that current numeric `INPUT` states appear in module status. |
-
-For detailed diagnosis, use the [Software and Network Troubleshooting Guide](TROUBLESHOOTING.md) or its [illustrated PDF edition](output/pdf/Avionicscraft_Software_Network_Troubleshooting.pdf).
-
----
-
-<p align="center">
-  <img src="DcsPanelHub/Assets/avionicscraft-logo.png" alt="Avionicscraft" width="430"><br>
-  <a href="https://avionicscraft.com/">Website</a> ·
-  <a href="output/pdf/Avionicscraft_Simulator_Software_README.pdf">Product guide PDF</a> ·
-  <a href="TROUBLESHOOTING.md">Troubleshooting</a>
-</p>
 
 <p align="center">
   <sub>This documentation intentionally uses generic MCU and panel terminology so the same architecture can support different aircraft and control layouts.</sub>
