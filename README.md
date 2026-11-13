@@ -45,13 +45,6 @@ Avionicscraft Simulator Software connects Ethernet-based flight simulator panels
 | Automatic reconnection | Compatible PWM backlight testing | Optional Windows startup |
 | Temporary trusted-MAC allow-list | Configurable activity-log retention | Generic text-based panel protocol |
 
-### Documentation
-
-| Guide | Markdown | Illustrated PDF |
-|---|---:|---:|
-| Product overview and setup | This README | [Open PDF](output/pdf/Avionicscraft_Simulator_Software_README.pdf) |
-| Software and network troubleshooting | [Open guide](TROUBLESHOOTING.md) | [Open PDF](output/pdf/Avionicscraft_Software_Network_Troubleshooting.pdf) |
-
 ## How it works
 
 ```mermaid
