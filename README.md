@@ -24,7 +24,6 @@
   <a href="#network">Network</a> ·
   <a href="#module-protocol">Protocol</a> ·
   <a href="#build-from-source">Build</a> ·
-  <a href="#troubleshooting">Troubleshooting</a>
 </p>
 
 ---
